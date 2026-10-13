@@ -78,13 +78,13 @@ int8_t AIFES_E_quantisation_fnn_f32_to_q7(aitensor_t *representative_f32_dataset
 
     if(representative_f32_dataset->dtype != aif32)
     {
-        //printf("ERROR! Tensor dtype\n");
+        aiprint("ERROR! Tensor dtype\n");
         return(-1);
     }
 
     if(representative_f32_dataset->shape[1] != AIFES_E_fnn->fnn_structure[0])
     {
-        //printf("ERROR! Input tensor shape does not correspond to ANN inputs\n");
+        aiprint("ERROR! Input tensor shape does not correspond to ANN inputs\n");
         return(-2);
     }
 
@@ -96,7 +96,7 @@ int8_t AIFES_E_quantisation_fnn_f32_to_q7(aitensor_t *representative_f32_dataset
 
     if(input_data_q7 == NULL)
     {
-        //printf("ERROR! Not enough memory\n" );
+        aiprint("ERROR! Not enough memory\n" );
         return(-3);
     }
 
@@ -149,7 +149,7 @@ int8_t AIFES_E_quantisation_fnn_f32_to_q7(aitensor_t *representative_f32_dataset
                 linear_count ++;
                 break;
             default :
-                //printf("ERROR! Unknown activation function\n" );
+                aiprint("ERROR! Unknown activation function\n" );
                 return(-4);
        }
     }
@@ -346,7 +346,7 @@ int8_t AIFES_E_quantisation_fnn_f32_to_q7(aitensor_t *representative_f32_dataset
                 break;
 
             default :
-                //printf("ERROR! Unknown activation function\n" );
+                aiprint("ERROR! Unknown activation function\n" );
                 return(-4);
         }
 
@@ -366,7 +366,9 @@ int8_t AIFES_E_quantisation_fnn_f32_to_q7(aitensor_t *representative_f32_dataset
     aialgo_compile_model(&model_q7); // Compile the AIfES q7 model
 
     uint32_t parameter_memory_size_q7 = aialgo_sizeof_parameter_memory(&model_q7);
-	//printf("Required memory for parameter of the q7 model (Weights, Biases, quantization parameters): %d Byte\n", parameter_memory_size_q7);
+    aiprint("Required memory for parameter of the q7 model (Weights, Biases, quantization parameters): ");
+    aiprint_uint("%d", parameter_memory_size_q7);
+    aiprint(" Byte\n");
 
 	void *parameter_memory_q7 = malloc(parameter_memory_size_q7);
 
@@ -379,7 +381,7 @@ int8_t AIFES_E_quantisation_fnn_f32_to_q7(aitensor_t *representative_f32_dataset
 
     if(memory_ptr == NULL)
     {
-        //printf("ERROR! Not enough memory\n" );
+        aiprint("ERROR! Not enough memory\n" );
         return(-3);
     }
 
@@ -392,7 +394,7 @@ int8_t AIFES_E_quantisation_fnn_f32_to_q7(aitensor_t *representative_f32_dataset
 
     if(memory_ptr == NULL)
     {
-        //printf("ERROR! Not enough memory\n" );
+        aiprint("ERROR! Not enough memory\n" );
         return(-3);
     }
 
@@ -401,12 +403,14 @@ int8_t AIFES_E_quantisation_fnn_f32_to_q7(aitensor_t *representative_f32_dataset
 
     aialgo_quantize_model_f32_to_q7(&model, &model_q7, representative_f32_dataset);
 
-    printf("\n");
-    printf("TEST2\n");
+    aiprint("\n");
+    aiprint("TEST2\n");
     for(i = 0; i < parameter_memory_size_q7; i++)
     {
-        //printf("%d\n",((uint8_t *) parameter_memory_q7)[i]);
-        printf("%d\n",q7_parameter_dataset[i]);
+        aiprint_uint("%d",((uint8_t *) parameter_memory_q7)[i]);
+        aiprint("\n");
+        aiprint_uint("%d",q7_parameter_dataset[i]);
+        aiprint("\n");
     }
 
 
@@ -430,25 +434,25 @@ int8_t AIFES_E_inference_fnn_q7(aitensor_t *input_tensor,
 
     if(input_tensor->dtype != aif32 || output_tensor->dtype != aif32)
     {
-        //printf("ERROR! Tensor dtype\n");
+        aiprint("ERROR! Tensor dtype\n");
         return(-1);
     }
 
     if(input_tensor->shape[0] != output_tensor->shape[0])
     {
-        //printf("ERROR! Tensor shape: Data Number\n");
+        aiprint("ERROR! Tensor shape: Data Number\n");
         return(-2);
     }
 
     if(input_tensor->shape[1] != AIFES_E_fnn->fnn_structure[0])
     {
-        //printf("ERROR! Input tensor shape does not correspond to ANN inputs\n");
+        aiprint("ERROR! Input tensor shape does not correspond to ANN inputs\n");
         return(-3);
     }
 
     if(output_tensor->shape[1] != AIFES_E_fnn->fnn_structure[AIFES_E_fnn->layer_count - 1])
     {
-        //printf("ERROR! Output tensor shape does not correspond to ANN outputs\n");
+        aiprint("ERROR! Output tensor shape does not correspond to ANN outputs\n");
         return(-4);
     }
 
@@ -492,7 +496,7 @@ int8_t AIFES_E_inference_fnn_q7(aitensor_t *input_tensor,
                 linear_count ++;
                 break;
             default :
-                //printf("ERROR! Unknown activation function\n" );
+                aiprint("ERROR! Unknown activation function\n" );
                 return(-5);
        }
     }
@@ -634,7 +638,7 @@ int8_t AIFES_E_inference_fnn_q7(aitensor_t *input_tensor,
                 break;
 
             default :
-                //printf("ERROR! Unknown activation function\n" );
+                aiprint("ERROR! Unknown activation function\n" );
                 return(-5);
         }
 
@@ -647,7 +651,9 @@ int8_t AIFES_E_inference_fnn_q7(aitensor_t *input_tensor,
     //Calculate required memory for the weights in Byte
 
     uint32_t parameter_memory_size_q7 = aialgo_sizeof_parameter_memory(&model_q7);
-	//printf("Required memory for parameter of the q7 model (Weights, Biases, quantization parameters): %d Byte\n", parameter_memory_size_q7);
+    aiprint("Required memory for parameter of the q7 model (Weights, Biases, quantization parameters): ");
+    aiprint_uint("%d", parameter_memory_size_q7);
+    aiprint(" Byte\n");
 
 	// Distribute the weights over the model
     aialgo_distribute_parameter_memory(&model_q7, (void *) AIFES_E_fnn->flat_weights, parameter_memory_size_q7);
@@ -661,7 +667,7 @@ int8_t AIFES_E_inference_fnn_q7(aitensor_t *input_tensor,
 
     if(memory_ptr == NULL)
     {
-        //printf("ERROR! Not enough memory\n" );
+        aiprint("ERROR! Not enough memory\n" );
         return(-6);
     }
 
@@ -676,7 +682,7 @@ int8_t AIFES_E_inference_fnn_q7(aitensor_t *input_tensor,
 
     if(input_data_q7 == NULL)
     {
-        //printf("ERROR! Not enough memory\n" );
+        aiprint("ERROR! Not enough memory\n" );
         return(-6);
     }
 
@@ -689,7 +695,7 @@ int8_t AIFES_E_inference_fnn_q7(aitensor_t *input_tensor,
 
     if(output_data_q7 == NULL)
     {
-        //printf("ERROR! Not enough memory\n" );
+        aiprint("ERROR! Not enough memory\n" );
         return(-6);
     }
 
