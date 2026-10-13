@@ -280,6 +280,10 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
     // Allocate memory for result and temporal data
     uint32_t memory_size = aialgo_sizeof_inference_memory(&model);
 
+    aiprint("Required inference memory size: ");
+    aiprint_uint("%u", memory_size);
+    aiprint(" bytes\n");
+
     void *memory_ptr = malloc(memory_size);
 
     if(memory_ptr == NULL)
@@ -615,6 +619,10 @@ int8_t AIFES_E_training_fnn_f32(aitensor_t *input_tensor,
     uint32_t memory_size = aialgo_sizeof_training_memory(&model, optimizer);
 
     void *memory_ptr = malloc(memory_size);
+
+    aiprint("Required training memory size: ");
+    aiprint_uint("%u", memory_size);
+    aiprint(" bytes\n");
 
     if(memory_ptr == NULL)
     {
