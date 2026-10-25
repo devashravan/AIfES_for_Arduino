@@ -47,7 +47,7 @@
 
 
 uint32_t AIFES_E_flat_weights_number_fnn_f32(uint32_t *fnn_structure,uint32_t layer_count)
- {
+{
     uint32_t i = 0;
     uint32_t sum = 0;
 
@@ -58,38 +58,12 @@ uint32_t AIFES_E_flat_weights_number_fnn_f32(uint32_t *fnn_structure,uint32_t la
     }
 
     return sum;
- }
+}
 
 
-int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
-                                 AIFES_E_model_parameter_fnn_f32 *AIFES_E_fnn,
-                                 aitensor_t *output_tensor)
+int8_t AIFES_E_create_fnn_f32(AIFES_E_model_parameter_fnn_f32 *AIFES_E_fnn, aimodel_t *model, void **layer_memory)
 {
     uint32_t i = 0;
-
-    if(input_tensor->dtype != aif32 || output_tensor->dtype != aif32)
-    {
-        aiprint("ERROR! Tensor dtype\n");
-        return(-1);
-    }
-
-    if(input_tensor->shape[0] != output_tensor->shape[0])
-    {
-        aiprint("ERROR! Tensor shape: Data Number\n");
-        return(-2);
-    }
-
-    if(input_tensor->shape[1] != AIFES_E_fnn->fnn_structure[0])
-    {
-        aiprint("ERROR! Input tensor shape does not correspond to ANN inputs\n");
-        return(-3);
-    }
-
-    if(output_tensor->shape[1] != AIFES_E_fnn->fnn_structure[AIFES_E_fnn->layer_count - 1])
-    {
-        aiprint("ERROR! Output tensor shape does not correspond to ANN outputs\n");
-        return(-4);
-    }
 
     // Counter for the activation functions
     uint32_t relu_count = 0;
@@ -130,18 +104,46 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
                 break;
             default :
                 aiprint("ERROR! Unknown activation function\n" );
-                return(-5);
+                return(-1);
        }
     }
 
-    // Define the activation functions
-    ailayer_relu_f32_t          relu_layer[relu_count];
-    ailayer_sigmoid_f32_t       sigmoid_layer[sigmoid_count];
-    ailayer_softmax_f32_t       softmax_layer[softmax_count];
-    ailayer_leaky_relu_f32_t    leaky_relu_layer[leaky_relu_count]; // alpha=0.01
-    ailayer_elu_f32_t           elu_layer[elu_count];               // alpha=1.0
-    ailayer_tanh_f32_t          tanh_layer[tanh_count];
-    ailayer_softsign_f32_t      softsign_layer[softsign_count];
+    uint32_t layer_memory_size = relu_count * sizeof(ailayer_relu_f32_t) +
+                                 sigmoid_count * sizeof(ailayer_sigmoid_f32_t) +
+                                 softmax_count * sizeof(ailayer_softmax_f32_t) +
+                                 leaky_relu_count * sizeof(ailayer_leaky_relu_f32_t) +
+                                 elu_count * sizeof(ailayer_elu_f32_t) +
+                                 tanh_count * sizeof(ailayer_tanh_f32_t) +
+                                 softsign_count * sizeof(ailayer_softsign_f32_t) +
+                                 (AIFES_E_fnn->layer_count - 1) * sizeof(ailayer_dense_t) +
+                                 sizeof(ailayer_input_t) +
+                                 2 * sizeof(uint16_t);
+
+    aiprint("Required layer memory size: ");
+    aiprint_uint("%u", layer_memory_size);
+    aiprint(" bytes\n");
+
+    *layer_memory = calloc(1, layer_memory_size);
+
+    if(*layer_memory == NULL)
+    {
+        aiprint("ERROR! Not enough memory\n" );
+        return(-2);
+    }
+
+    // Distribute the memory to the layers
+    uint8_t *p = *layer_memory;
+
+    ailayer_relu_f32_t *relu_layer = (ailayer_relu_f32_t *)p;                     p += relu_count * sizeof(ailayer_relu_f32_t);
+    ailayer_sigmoid_f32_t *sigmoid_layer = (ailayer_sigmoid_f32_t *)p;            p += sigmoid_count * sizeof(ailayer_sigmoid_f32_t);
+    ailayer_softmax_f32_t *softmax_layer = (ailayer_softmax_f32_t *)p;            p += softmax_count * sizeof(ailayer_softmax_f32_t);
+    ailayer_leaky_relu_f32_t *leaky_relu_layer = (ailayer_leaky_relu_f32_t *)p;   p += leaky_relu_count * sizeof(ailayer_leaky_relu_f32_t);
+    ailayer_elu_f32_t *elu_layer = (ailayer_elu_f32_t *)p;                        p += elu_count * sizeof(ailayer_elu_f32_t);
+    ailayer_tanh_f32_t *tanh_layer = (ailayer_tanh_f32_t *)p;                     p += tanh_count * sizeof(ailayer_tanh_f32_t);
+    ailayer_softsign_f32_t *softsign_layer = (ailayer_softsign_f32_t *)p;         p += softsign_count * sizeof(ailayer_softsign_f32_t);
+    ailayer_dense_t *dense_layer = (ailayer_dense_t *)p;                          p += (AIFES_E_fnn->layer_count - 1) * sizeof(ailayer_dense_t);
+    ailayer_input_t *input_layer = (ailayer_input_t *)p;                          p += sizeof(ailayer_input_t);
+    uint16_t *input_layer_shape = (uint16_t *)p;                                  p += 2 * sizeof(uint16_t);
 
     // Init leaky relu with default alpha
     for (i = 0; i < leaky_relu_count; i++) {
@@ -151,9 +153,6 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
     for (i = 0; i < elu_count; i++) {
      elu_layer[i].alpha = 1.0f;
     }
-
-    // Define the dense layer
-    ailayer_dense_t         dense_layer[AIFES_E_fnn->layer_count - 1];
 
     // Use the variables as counter
     relu_count = 0;
@@ -167,12 +166,11 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
 
 
     // Input layer
-    uint16_t input_layer_shape[] = {1, AIFES_E_fnn->fnn_structure[0]};      // Definition of the input layer shape (Must fit to the input tensor)
-    ailayer_input_t input_layer;                // Creation of the AIfES input layer
-    input_layer.input_dim = 2;                  // Definition of the input dimension (Must fit to the input tensor)
-    input_layer.input_shape = input_layer_shape;// Handover of the input layer shape
+    input_layer_shape[0] = 1;
+    input_layer_shape[1] = AIFES_E_fnn->fnn_structure[0];
+    input_layer->input_dim = 2;                    // Definition of the input dimension (Must fit to the input tensor)
+    input_layer->input_shape = input_layer_shape;  // Handover of the input layer shape
 
-    aimodel_t model;  // AIfES model
     ailayer_t *x;     // Layer object from AIfES, contains the layers
 
     // Generate the dense layer and the output layer
@@ -180,12 +178,12 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
 
         if(i==0)
         {
-             // Input layer
-             model.input_layer = ailayer_input_f32_default(&input_layer);
-             // first dense layer
-             dense_layer[i].neurons =  AIFES_E_fnn->fnn_structure[i+1];
-             // Create first dense layer
-             x = ailayer_dense_f32_default(&dense_layer[i], model.input_layer);
+            // Input layer
+            model->input_layer = ailayer_input_f32_default(input_layer);
+            // first dense layer
+            dense_layer[i].neurons =  AIFES_E_fnn->fnn_structure[i+1];
+            // Create first dense layer
+            x = ailayer_dense_f32_default(&dense_layer[i], model->input_layer);
         }
         else
         {
@@ -196,7 +194,7 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
         switch(AIFES_E_fnn->fnn_activations[i]) {
             case AIfES_E_relu:
                 if(i == AIFES_E_fnn->layer_count - 2){
-                    model.output_layer = ailayer_relu_f32_default(&relu_layer[relu_count], x);  // Output layer
+                    model->output_layer = ailayer_relu_f32_default(&relu_layer[relu_count], x);  // Output layer
                 }else{
                     x = ailayer_relu_f32_default(&relu_layer[relu_count], x);
                 }
@@ -204,7 +202,7 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
                 break;
             case AIfES_E_sigmoid:
                 if(i == AIFES_E_fnn->layer_count - 2){
-                    model.output_layer = ailayer_sigmoid_f32_default(&sigmoid_layer[sigmoid_count], x);
+                    model->output_layer = ailayer_sigmoid_f32_default(&sigmoid_layer[sigmoid_count], x);
                 }else{
                     x = ailayer_sigmoid_f32_default(&sigmoid_layer[sigmoid_count], x);
                 }
@@ -212,7 +210,7 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
                 break;
             case AIfES_E_softmax:
                 if(i == AIFES_E_fnn->layer_count - 2){
-                    model.output_layer = ailayer_softmax_f32_default(&softmax_layer[softmax_count], x);
+                    model->output_layer = ailayer_softmax_f32_default(&softmax_layer[softmax_count], x);
                 }else{
                     x = ailayer_softmax_f32_default(&softmax_layer[softmax_count], x);
                 }
@@ -220,7 +218,7 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
                 break;
             case AIfES_E_leaky_relu:
                 if(i == AIFES_E_fnn->layer_count - 2){
-                    model.output_layer = ailayer_leaky_relu_f32_default(&leaky_relu_layer[leaky_relu_count], x);
+                    model->output_layer = ailayer_leaky_relu_f32_default(&leaky_relu_layer[leaky_relu_count], x);
                 }else{
                     x = ailayer_leaky_relu_f32_default(&leaky_relu_layer[leaky_relu_count], x);
                 }
@@ -228,7 +226,7 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
                 break;
             case AIfES_E_elu:
                 if(i == AIFES_E_fnn->layer_count - 2){
-                    model.output_layer = ailayer_elu_f32_default(&elu_layer[elu_count], x);
+                    model->output_layer = ailayer_elu_f32_default(&elu_layer[elu_count], x);
                 }else{
                     x = ailayer_elu_f32_default(&elu_layer[elu_count], x);
                 }
@@ -236,7 +234,7 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
                 break;
             case AIfES_E_tanh:
                 if(i == AIFES_E_fnn->layer_count - 2){
-                    model.output_layer = ailayer_tanh_f32_default(&tanh_layer[tanh_count], x);
+                    model->output_layer = ailayer_tanh_f32_default(&tanh_layer[tanh_count], x);
                 }else{
                     x = ailayer_tanh_f32_default(&tanh_layer[tanh_count], x);
                 }
@@ -244,7 +242,7 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
                 break;
             case AIfES_E_softsign:
                 if(i == AIFES_E_fnn->layer_count - 2){
-                    model.output_layer = ailayer_softsign_f32_default(&softsign_layer[softsign_count], x);
+                    model->output_layer = ailayer_softsign_f32_default(&softsign_layer[softsign_count], x);
                 }else{
                     x = ailayer_softsign_f32_default(&softsign_layer[softsign_count], x);
                 }
@@ -252,7 +250,7 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
                 break;
             case AIfES_E_linear:
                 if(i == AIFES_E_fnn->layer_count - 2){
-                    model.output_layer = x;
+                    model->output_layer = x;
                 }else{
                     //no activation needed
                 }
@@ -261,48 +259,91 @@ int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor,
 
             default :
                 aiprint("ERROR! Unknown activation function\n" );
-                return(-5);
+                AIFES_E_free_layer_memory_fnn_f32(layer_memory);
+                return(-1);
         }
 
     }
 
-    aialgo_compile_model(&model); // Compile the AIfES model
+    aialgo_compile_model(model); // Compile the AIfES model
 
-    // -------------------------------- Pass the weights to the model ----------------------------------
     //Calculate required memory for the weights in Byte
-    uint32_t parameter_memory_size = aialgo_sizeof_parameter_memory(&model);
+    uint32_t parameter_memory_size = aialgo_sizeof_parameter_memory(model);
 
     // Distribute the weights over the model
-    aialgo_distribute_parameter_memory(&model, (void *) AIFES_E_fnn->flat_weights, parameter_memory_size);
+    aialgo_distribute_parameter_memory(model, (void *) AIFES_E_fnn->flat_weights, parameter_memory_size);
+    return (0);
+}
 
-    // -------------------------------- Allocate and schedule the working memory for inference ---------
 
+void AIFES_E_free_layer_memory_fnn_f32(void **layer_memory)
+{
+    free(*layer_memory);
+    *layer_memory = NULL;
+}
+
+
+int8_t AIFES_E_set_inference_mode_fnn_f32(aimodel_t *model, void **inference_memory)
+{
     // Allocate memory for result and temporal data
-    uint32_t memory_size = aialgo_sizeof_inference_memory(&model);
+    uint32_t inference_memory_size = aialgo_sizeof_inference_memory(model);
 
     aiprint("Required inference memory size: ");
-    aiprint_uint("%u", memory_size);
+    aiprint_uint("%u", inference_memory_size);
     aiprint(" bytes\n");
 
-    void *memory_ptr = malloc(memory_size);
+    *inference_memory = malloc(inference_memory_size);
 
-    if(memory_ptr == NULL)
+    if(*inference_memory == NULL)
     {
         aiprint("ERROR! Not enough memory\n" );
-        return(-6);
+        return(-1);
     }
 
     // Schedule the memory over the model
-    aialgo_schedule_inference_memory(&model, memory_ptr, memory_size);
+    aialgo_schedule_inference_memory(model, *inference_memory, inference_memory_size);
+    return (0);
+}
+
+
+int8_t AIFES_E_inference_fnn_f32(aitensor_t *input_tensor, aimodel_t *model, aitensor_t *output_tensor)
+{
+    if(input_tensor->dtype != aif32 || output_tensor->dtype != aif32)
+    {
+        aiprint("ERROR! Tensor dtype\n");
+        return(-1);
+    }
+
+    if(input_tensor->shape[0] != output_tensor->shape[0])
+    {
+        aiprint("ERROR! Tensor shape: Data Number\n");
+        return(-2);
+    }
+
+    if(input_tensor->shape[1] != model->input_layer->result.shape[1])
+    {
+        aiprint("ERROR! Input tensor shape does not correspond to ANN inputs\n");
+        return(-3);
+    }
+
+    if(output_tensor->shape[1] != model->output_layer->result.shape[1])
+    {
+        aiprint("ERROR! Output tensor shape does not correspond to ANN outputs\n");
+        return(-4);
+    }
 
     //Do the inference and pass the result to the output_tensor
-    aialgo_inference_model(&model, input_tensor, output_tensor);
-
-    //Free the inference memory
-    free(memory_ptr);
-
-    return(0);
+    aialgo_inference_model(model, input_tensor, output_tensor);
+    return (0);
 }
+
+
+void AIFES_E_free_inference_memory_fnn_f32(void **inference_memory)
+{
+    free(*inference_memory);
+    *inference_memory = NULL;
+}
+
 
 int8_t AIFES_E_training_fnn_f32(aitensor_t *input_tensor,
                                 aitensor_t *target_tensor,
