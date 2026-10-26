@@ -105,7 +105,7 @@ int8_t AIFES_E_create_fnn_f32(AIFES_E_model_parameter_fnn_f32 *AIFES_E_fnn, AIFE
                 linear_count ++;
                 break;
             default :
-                aiprint("ERROR! Unknown activation function\n" );
+                aiprint("ERROR! Unknown activation function\n");
                 return(-1);
        }
     }
@@ -130,7 +130,7 @@ int8_t AIFES_E_create_fnn_f32(AIFES_E_model_parameter_fnn_f32 *AIFES_E_fnn, AIFE
 
     if(*model_memory == NULL)
     {
-        aiprint("ERROR! Not enough memory\n" );
+        aiprint("ERROR! Not enough memory\n");
         return(-3);
     }
 
@@ -269,7 +269,7 @@ int8_t AIFES_E_create_fnn_f32(AIFES_E_model_parameter_fnn_f32 *AIFES_E_fnn, AIFE
                 break;
 
             default :
-                aiprint("ERROR! Unknown activation function\n" );
+                aiprint("ERROR! Unknown activation function\n");
                 AIFES_E_free_model_memory_fnn_f32(model_memory);
                 return(-1);
         }
@@ -283,7 +283,7 @@ int8_t AIFES_E_create_fnn_f32(AIFES_E_model_parameter_fnn_f32 *AIFES_E_fnn, AIFE
             case AIfES_E_mse:
                 if (AIFES_E_fnn->fnn_activations[AIFES_E_fnn->layer_count - 2] == AIfES_E_softmax)
                 {
-                    printf("ERROR! Use the crossentropy as loss for softmax\n" );
+                    aiprint("ERROR! Use the crossentropy as loss for softmax\n");
                     AIFES_E_free_model_memory_fnn_f32(model_memory);
                     return(-4);
                 }
@@ -293,7 +293,7 @@ int8_t AIFES_E_create_fnn_f32(AIFES_E_model_parameter_fnn_f32 *AIFES_E_fnn, AIFE
                 model->loss = ailoss_crossentropy_f32_default(crossentropy_loss, model->output_layer);
                 break;
             default :
-                aiprint("ERROR! Unknown loss function\n" );
+                aiprint("ERROR! Unknown loss function\n");
                 AIFES_E_free_model_memory_fnn_f32(model_memory);
                 return(-2);
         }
@@ -330,7 +330,7 @@ int8_t AIFES_E_set_inference_mode_fnn_f32(aimodel_t *model, void **inference_mem
 
     if(*inference_memory == NULL)
     {
-        aiprint("ERROR! Not enough memory\n" );
+        aiprint("ERROR! Not enough memory\n");
         return(-1);
     }
 
@@ -403,7 +403,7 @@ int8_t AIFES_E_set_training_mode_fnn_f32(AIFES_E_training_parameter_fnn_f32 *AIF
 
             if (adam_opti == NULL)
             {
-                aiprint("ERROR! Not enough memory\n" );
+                aiprint("ERROR! Not enough memory\n");
                 return(-4);
             }
 
@@ -419,7 +419,7 @@ int8_t AIFES_E_set_training_mode_fnn_f32(AIFES_E_training_parameter_fnn_f32 *AIF
 
             if (sgd_opti == NULL)
             {
-                aiprint("ERROR! Not enough memory\n" );
+                aiprint("ERROR! Not enough memory\n");
                 return(-4);
             }
 
@@ -428,7 +428,7 @@ int8_t AIFES_E_set_training_mode_fnn_f32(AIFES_E_training_parameter_fnn_f32 *AIF
             *optimizer = aiopti_sgd_f32_default(sgd_opti);
             break;
         default :
-            aiprint("ERROR! Unknown optimizer\n" );
+            aiprint("ERROR! Unknown optimizer\n");
             return(-3);
     }
 
@@ -443,7 +443,7 @@ int8_t AIFES_E_set_training_mode_fnn_f32(AIFES_E_training_parameter_fnn_f32 *AIF
 
     if (*training_memory == NULL)
     {
-        aiprint("ERROR! Not enough memory\n" );
+        aiprint("ERROR! Not enough memory\n");
         free(*optimizer);
         *optimizer = NULL;
         return(-4);
@@ -481,13 +481,13 @@ int8_t AIFES_E_training_fnn_f32(aitensor_t *input_tensor,
 
     if(input_tensor->shape[1] != model->input_layer->result.shape[1])
     {
-        printf("ERROR! Input tensor shape does not correspond to ANN inputs\n");
+        aiprint("ERROR! Input tensor shape does not correspond to ANN inputs\n");
         return(-3);
     }
 
     if(output_tensor->shape[1] != model->output_layer->result.shape[1] || target_tensor->shape[1] != model->output_layer->result.shape[1])
     {
-        printf("ERROR! Output or target tensor shape does not correspond to ANN outputs\n");
+        aiprint("ERROR! Output or target tensor shape does not correspond to ANN outputs\n");
         return(-4);
     }
 
@@ -537,7 +537,7 @@ int8_t AIFES_E_training_fnn_f32(aitensor_t *input_tensor,
                     }
                     break;
                 default :
-                    aiprint("ERROR! Unknown loss function\n" );
+                    aiprint("ERROR! Unknown loss function\n");
                     return(-6);
             }
         }
