@@ -143,7 +143,7 @@ struct AIFES_E_training_parameter_fnn_f32{
    float                        sgd_momentum; /**< Optional momentum for SGD (Value 0.0f means Momentum off) */
    uint32_t                     batch_size; /**< Batch size (min: 1 -> max: Entire data set) */
    uint32_t                     epochs; /**< Number of desired epochs (If early stopping is on, can be stopped before) */
-   uint32_t                     epochs_loss_print_interval; /**< Selection of the interval in which the loss is to be calculated and output via the print function */
+   uint32_t                     epochs_loss_print_interval; /**< Selection of the interval in which the loss is to be calculated and output via the print function, 0 means no printing */
 
     /** @brief Individual print function for the loss
     *

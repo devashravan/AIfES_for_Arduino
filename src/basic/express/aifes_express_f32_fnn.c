@@ -125,6 +125,9 @@ int8_t AIFES_E_create_fnn_f32(AIFES_E_model_parameter_fnn_f32 *AIFES_E_fnn, AIFE
     aiprint("Memory required to store the model: ");
     aiprint_uint("%u", model_memory_size);
     aiprint(" bytes\n");
+    aiprint("Memory required to store the model parameters: ");
+    aiprint_uint("%u", AIFES_E_flat_weights_number_fnn_f32(AIFES_E_fnn->fnn_structure, AIFES_E_fnn->layer_count) * sizeof(float));
+    aiprint(" bytes\n");
 
     *model_memory = calloc(1, model_memory_size);
 
@@ -322,7 +325,7 @@ int8_t AIFES_E_set_inference_mode_fnn_f32(aimodel_t *model, void **inference_mem
     // Allocate memory for result and temporal data
     uint32_t inference_memory_size = aialgo_sizeof_inference_memory(model);
 
-    aiprint("Memory required to run inference: ");
+    aiprint("Memory required to run inference with the model: ");
     aiprint_uint("%u", inference_memory_size);
     aiprint(" bytes\n");
 
@@ -423,7 +426,7 @@ int8_t AIFES_E_set_training_mode_fnn_f32(AIFES_E_training_parameter_fnn_f32 *AIF
                 return(-4);
             }
 
-            sgd_opti->learning_rate = AIFES_E_fnn_training->learn_rate;
+            sgd_opti->learning_rate = AIFES_E_fnn_training->learn_rate / AIFES_E_fnn_training->batch_size; // Scale the learning rate by the batch size
             sgd_opti->momentum = AIFES_E_fnn_training->sgd_momentum;
             *optimizer = aiopti_sgd_f32_default(sgd_opti);
             break;
@@ -435,7 +438,7 @@ int8_t AIFES_E_set_training_mode_fnn_f32(AIFES_E_training_parameter_fnn_f32 *AIF
     // Allocate memory for training and temporal data
     uint32_t training_memory_size = aialgo_sizeof_training_memory(model, *optimizer);
 
-    aiprint("Memory required to run training: ");
+    aiprint("Memory required to train the model (also covers inference): ");
     aiprint_uint("%u", training_memory_size + optimizer_memory_size);
     aiprint(" bytes\n");
 
@@ -505,7 +508,7 @@ int8_t AIFES_E_training_fnn_f32(aitensor_t *input_tensor,
         aialgo_train_model(model, input_tensor, target_tensor, optimizer, AIFES_E_fnn_training->batch_size);
 
         // Calculate and print loss every print_interval epochs
-        if(i % AIFES_E_fnn_training->epochs_loss_print_interval == 0)
+        if(AIFES_E_fnn_training->epochs_loss_print_interval != 0 && i % AIFES_E_fnn_training->epochs_loss_print_interval == 0)
         {
             aialgo_calc_loss_model_f32(model, input_tensor, target_tensor, &loss);
 
